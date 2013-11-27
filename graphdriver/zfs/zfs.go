@@ -1,24 +1,8 @@
 /*
+ * ZFS Driver
+ */
 
-aufs driver directory structure
-
-.
-├── layers // Metadata of layers
-│   ├── 1
-│   ├── 2
-│   └── 3
-├── diffs  // Content of the layer
-│   ├── 1  // Contains layers that need to be mounted for the id
-│   ├── 2
-│   └── 3
-└── mnt    // Mount points for the rw layers to be mounted
-    ├── 1
-    ├── 2
-    └── 3
-
-*/
-
-package aufs
+package zfs
 
 import (
 	"bufio"
@@ -34,29 +18,36 @@ import (
 )
 
 func init() {
-	graphdriver.Register("aufs", Init)
+	graphdriver.Register("zfs", Init)
 }
 
 type Driver struct {
 	root string
 }
 
-// New returns a new AUFS driver.
-// An error is returned if AUFS is not supported.
+// New returns a new ZFS driver.
+// An error is returned if ZFS is not available on the system.
 func Init(root string) (graphdriver.Driver, error) {
-	// Try to load the aufs kernel module
-	if err := supportsAufs(); err != nil {
+	// Check if the ZFS filesystem is present
+	if err := supportsZFS(); err != nil {
 		return nil, err
 	}
-	paths := []string{
-		"mnt",
-		"diff",
-		"layers",
-	}
 
-	// Create the root aufs driver dir and return
-	// if it already exists
-	// If not populate the dir structure
+	/*
+	 * Trim any leading and trailing slashes from the root name. In absence of
+	 * leading and trailing slash characters, the zfs command below will looks only
+	 * for the named dataset, and not a directory in the filesystem by that name or
+	 * path.
+	 */
+	root := strings.TrimPrefix(root, "/")
+	root := strings.TrimSuffix(root, "/")
+
+//TODO: add the property in outout to check whether the FS is actually mounted
+	// Check that the root provided to us is a ZFS filesystem mount point
+	if exec.Command("zfs", "list", "-t", "filesystem", root).Run(); err != nil {
+		return nil, err // XXX Should we cook a errors.New() with accurate message?
+	}
+	
 	if err := os.MkdirAll(root, 0755); err != nil {
 		if os.IsExist(err) {
 			return &Driver{root}, nil
@@ -72,14 +63,17 @@ func Init(root string) (graphdriver.Driver, error) {
 	return &Driver{root}, nil
 }
 
-// Return a nil error if the kernel supports aufs
-// We cannot modprobe because inside dind modprobe fails
-// to run
-func supportsAufs() error {
-	// We can try to modprobe aufs first before looking at
-	// proc/filesystems for when aufs is supported
-	exec.Command("modprobe", "aufs").Run()
+func sliceContainsString(list []string, a string) (bool) {
+	for _, b = range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
 
+// Return a nil error if the kernel supports ZFS
+func supportsZFS() error {
 	f, err := os.Open("/proc/filesystems")
 	if err != nil {
 		return err
@@ -88,11 +82,12 @@ func supportsAufs() error {
 
 	s := bufio.NewScanner(f)
 	for s.Scan() {
-		if strings.Contains(s.Text(), "aufs") {
+		words := strings.Fields(s.Text())
+		if sliceContainsString(words, "zfs") {
 			return nil
 		}
 	}
-	return fmt.Errorf("AUFS was not found in /proc/filesystems")
+	return fmt.Errorf("ZFS was not found in /proc/filesystems")
 }
 
 func (a Driver) rootPath() string {
