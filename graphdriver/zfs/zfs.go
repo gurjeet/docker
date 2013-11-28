@@ -42,7 +42,7 @@ func Init(root string) (graphdriver.Driver, error) {
 	root := strings.TrimPrefix(root, "/")
 	root := strings.TrimSuffix(root, "/")
 
-//TODO: add the property in outout to check whether the FS is actually mounted
+TODO: add the property in outout to check whether the FS is actually mounted
 	// Check that the root provided to us is a ZFS filesystem mount point
 	if exec.Command("zfs", "list", "-t", "filesystem", root).Run(); err != nil {
 		return nil, err // XXX Should we cook a errors.New() with accurate message?
