@@ -40,6 +40,7 @@ var (
 		"aufs",
 		"devicemapper",
 		"vfs",
+		"zfs",
 	}
 )
 
