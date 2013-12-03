@@ -11,6 +11,7 @@ import (
 	"github.com/dotcloud/docker/graphdriver/aufs"
 	_ "github.com/dotcloud/docker/graphdriver/devmapper"
 	_ "github.com/dotcloud/docker/graphdriver/vfs"
+	"github.com/dotcloud/docker/graphdriver/zfs"
 	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
@@ -647,6 +648,16 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 		if err := ad.Migrate(config.Root, setupInitLayer); err != nil {
 			return nil, err
 		}
+	}
+
+	/*
+	 * Load the ZFS storage driver.
+	 *
+	 * TODO: There's got to be a better way to do this than practically copying the
+	 * code above.
+	 */
+	if _, ok := driver.(*zfs.Driver); ok {
+			utils.Debugf("[zfs] Loaded zfs storage driver")
 	}
 
 	if err := linkLxcStart(config.Root); err != nil {
