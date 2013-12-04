@@ -1,7 +1,7 @@
 package zfs
 
 /*
- * This file contains the exposed interface of the ZFS driver
+ * This file contains the public interface of the ZFS driver
  */
 
 import (
@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	dbg("ZFS init")
+	dbg("ZFS init") // XXX: This line never shows up in -D output!
 
 	graphdriver.Register("zfs", Init)
 }

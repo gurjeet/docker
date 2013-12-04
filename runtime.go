@@ -25,6 +25,7 @@ import (
 	"time"
 )
 
+// TODO: disable this restriction for non-AUFS drivers
 // Set the max depth to the aufs restriction
 const MaxImageDepth = 42
 
