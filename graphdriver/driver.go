@@ -11,17 +11,17 @@ import (
 type InitFunc func(root string) (Driver, error)
 
 type Driver interface {
-	String() string
+	String() string	// A user-friendly name for the driver
 
-	Create(id, parent string) error
-	Remove(id string) error
+	Create(id, parent string) error	// Create storage for a container
+	Remove(id string) error	// Remove storage of a container
 
-	Get(id string) (dir string, err error)
-	Exists(id string) bool
+	Get(id string) (dir string, err error)	// Get the physical directory location of the container
+	Exists(id string) bool	// Does the given container exist in this driver?
 
-	Status() [][2]string
+	Status() [][2]string // A user-friendly status message
 
-	Cleanup() error
+	Cleanup() error // Called during Docker shutdown
 }
 
 type Differ interface {

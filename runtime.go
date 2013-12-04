@@ -29,6 +29,8 @@ import (
 // Set the max depth to the aufs default that most
 // kernels are compiled with
 // For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
+// TODO: disable this restriction for non-AUFS drivers
+// Set the max depth to the aufs restriction
 const MaxImageDepth = 127
 
 var (
