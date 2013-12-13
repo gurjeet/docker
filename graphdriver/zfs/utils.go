@@ -2,8 +2,10 @@ package zfs
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"github.com/dotcloud/docker/utils"
 )
@@ -42,4 +44,15 @@ func supportsZFS() error {
 
 func dbg(format string, a ... interface{}) {
 	utils.Debugf("[zfs] " + format, a...)
+}
+
+func execCmd(name string, args ... string) (string, string, error) {
+	cmd := exec.Command(name, args...)
+	var outBuf bytes.Buffer
+	var errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	err := cmd.Run()
+
+	return outBuf.String(), errBuf.String(), err
 }

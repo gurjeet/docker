@@ -5,12 +5,10 @@ package zfs
  */
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/graphdriver"
 	"os"
-	"os/exec"
 	"strings"
 )
 
@@ -50,36 +48,30 @@ func Init(root string) (graphdriver.Driver, error) {
 	 * using TAB to separate the fields. `zfs create` disallows a TAB character in
 	 * dataset's name, so there's no danger of us getting the mount-point wrong.
 	 */
-	cmd := exec.Command("zfs", "list", "-H", "-o", "name,mountpoint", "-t", "filesystem", root)
-	var outBuf bytes.Buffer
-	var errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	err := cmd.Run()
+	outStream, errStream, err := execCmd("zfs", "list", "-H", "-o", "name,mountpoint", "-t", "filesystem", root)
 	if err != nil {
 		dbg("`zfs list` error: %s", err)
-		dbg("`zfs list` stderr: %s", errBuf.String())
+		dbg("`zfs list` stderr: %s", errStream)
 
 		return nil, err // XXX We should cook a errors.New() with accurate message.
 	}
 
-	dbg("`zfs list` output: %s", outBuf.String())
+	dbg("`zfs list` output: %s", outStream)
 
 	/*
 	 * Split the output on tab characters.
 	 */
-	output := strings.FieldsFunc(outBuf.String(),
+	outSplice := strings.FieldsFunc(outStream,
 								func (r rune) bool {
 									return r == '\t'
 								})
 
-	dataset_name := output[0];
-	mount_point := output[1]
+	dataset_name := outSplice[0];
+	mount_point := outSplice[1]
 	// Strip the trailing newline character
 	mount_point = strings.TrimSuffix(mount_point, "\n")
-	dbg("root: %s", root)
-	dbg("Dataset: %s", dataset_name)
-	dbg("Mount Point: %s", mount_point)
+	driver := Driver{root, dataset_name, mount_point}
+	dbg("status: %v", driver.Status())
 
 	/*
 	 * Now change to the directory that is the mount-point of this filesystem. The
@@ -91,7 +83,7 @@ func Init(root string) (graphdriver.Driver, error) {
 		return nil, fmt.Errorf("zfs-Init: Could not change to the mount point '%s'", mount_point)
 	}
 
-	return &Driver{root, dataset_name, mount_point}, nil
+	return &driver, nil
 }
 
 func (d Driver) rootPath() string {
