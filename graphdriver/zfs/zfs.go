@@ -21,7 +21,9 @@ func init() {
 }
 
 type Driver struct {
-	root string
+	root string // Path to the root of the graph storage (as seen by Docker daemon)
+	root_dataset_name string // Name of the ZFS dataset mount at 'root'
+	root_mountpoint string // Filesystem mountpoint; must be the same as 'root'
 }
 
 /*
@@ -48,7 +50,7 @@ func Init(root string) (graphdriver.Driver, error) {
 	 * using TAB to separate the fields. `zfs create` disallows a TAB character in
 	 * dataset's name, so there's no danger of us getting the mount-point wrong.
 	 */
-	cmd := exec.Command("zfs", "list", "-H", "-o", "mountpoint", "-t", "filesystem", root)
+	cmd := exec.Command("zfs", "list", "-H", "-o", "name,mountpoint", "-t", "filesystem", root)
 	var outBuf bytes.Buffer
 	var errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
@@ -71,10 +73,13 @@ func Init(root string) (graphdriver.Driver, error) {
 									return r == '\t'
 								})
 
-	mount_point := output[len(output)-1]
+	dataset_name := output[0];
+	mount_point := output[1]
 	// Strip the trailing newline character
 	mount_point = strings.TrimSuffix(mount_point, "\n")
-	dbg("Mount point: %s", mount_point)
+	dbg("root: %s", root)
+	dbg("Dataset: %s", dataset_name)
+	dbg("Mount Point: %s", mount_point)
 
 	/*
 	 * Now change to the directory that is the mount-point of this filesystem. The
@@ -86,7 +91,7 @@ func Init(root string) (graphdriver.Driver, error) {
 		return nil, fmt.Errorf("zfs-Init: Could not change to the mount point '%s'", mount_point)
 	}
 
-	return &Driver{root}, nil
+	return &Driver{root, dataset_name, mount_point}, nil
 }
 
 func (d Driver) rootPath() string {
@@ -100,7 +105,9 @@ func (d *Driver) String() string {
 func (d *Driver) Status() [][2]string {
 	return [][2]string{
 		{"Root Dir", d.root},
-		// TODO: Emulate AUFS driver-like output,
+		{"Dataset", d.root_dataset_name},
+		{"Mount Point", d.root_mountpoint},
+		// TODO: Emulate AUFS driver-like output; not necessary, but see what more info can help the user.
 	}
 }
 
