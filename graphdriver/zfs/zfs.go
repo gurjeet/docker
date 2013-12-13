@@ -104,21 +104,40 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
+/*
+ * This is called when unmounting the driver. The driver is supposed to unmount the
+ * filesystems of all the containers that it has in its registry.
+ */
 func (d *Driver) Cleanup() error {
 	return errors.New("zfs-Cleanup: not supported yet")
 }
 
+/*
+ * Create the on-disk structures for  the container's storage. Use the parent's
+ * storage contents to populate the base image of this container.
+ */
 func (d *Driver) Create(id string, parent string) error {
 	return errors.New("zfs-Create: not supported yet")
 }
 
+/*
+ * Remove the on-disk structures of the container's storage.
+ */
 func (d *Driver) Remove(id string) error {
 	return errors.New("zfs-Remove: not supported yet")
 }
 
+/*
+ * Mount the storage of the container, and return the resulting (read-write capable)
+ * path to it.
+ */
 func (d *Driver) Get(id string) (string, error) {
 	return "", errors.New("zfs-Get: not supported yet")
 }
+
+/*
+ * Exists returns true if the given id is registered with this driver.
+ */
 
 func (d *Driver) Exists(id string) bool {
 	return false
