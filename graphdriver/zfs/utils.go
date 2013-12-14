@@ -48,11 +48,17 @@ func dbg(format string, a ... interface{}) {
 
 func execCmd(name string, args ... string) (string, string, error) {
 	cmd := exec.Command(name, args...)
+	dbg("Command: %v", cmd)
 	var outBuf bytes.Buffer
 	var errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 	err := cmd.Run()
+	outString := outBuf.String()
+	errString := errBuf.String()
+	dbg("outStream: %s", outString)
+	dbg("errStream: %s", errString)
+	dbg("error: %v", err)
 
-	return outBuf.String(), errBuf.String(), err
+	return outString, errString, err
 }
