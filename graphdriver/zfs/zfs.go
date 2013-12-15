@@ -8,8 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/graphdriver"
+	"math/rand"
 	"os"
+	"path"
 	"strings"
+	"time"
 )
 
 func init() {
@@ -22,6 +25,7 @@ type Driver struct {
 	root string // Path to the root of the graph storage (as seen by Docker daemon)
 	root_dataset_name string // Name of the ZFS dataset mount at 'root'
 	root_mountpoint string // Filesystem mountpoint; must be the same as 'root'
+	rand *rand.Rand
 }
 
 /*
@@ -30,7 +34,7 @@ type Driver struct {
  * An error is returned if ZFS is not available on the system.
  */
 func Init(root string) (graphdriver.Driver, error) {
-	dbg("Init")
+	{funcName := funcEnter();defer funcLeave(funcName)}
 
 	// Check if the ZFS filesystem is present
 	if err := supportsZFS(); err != nil {
@@ -48,15 +52,10 @@ func Init(root string) (graphdriver.Driver, error) {
 	 * using TAB to separate the fields. `zfs create` disallows a TAB character in
 	 * dataset's name, so there's no danger of us getting the mount-point wrong.
 	 */
-	outStream, errStream, err := execCmd("zfs", "list", "-H", "-o", "name,mountpoint", "-t", "filesystem", root)
+	outStream, _, err := execCmd("zfs", "list", "-H", "-o", "name,mountpoint", "-t", "filesystem", root)
 	if err != nil {
-		dbg("`zfs list` error: %s", err)
-		dbg("`zfs list` stderr: %s", errStream)
-
 		return nil, err // XXX We should cook a errors.New() with accurate message.
 	}
-
-	dbg("`zfs list` output: %s", outStream)
 
 	/*
 	 * Split the output on tab characters.
@@ -70,7 +69,7 @@ func Init(root string) (graphdriver.Driver, error) {
 	mount_point := outSplice[1]
 	// Strip the trailing newline character
 	mount_point = strings.TrimSuffix(mount_point, "\n")
-	driver := Driver{root, dataset_name, mount_point}
+	driver := Driver{root, dataset_name, mount_point, rand.New(rand.NewSource(time.Now().UnixNano()))}
 	dbg("status: %v", driver.Status())
 
 	/*
@@ -86,15 +85,13 @@ func Init(root string) (graphdriver.Driver, error) {
 	return &driver, nil
 }
 
-func (d Driver) rootPath() string {
-	return d.root
-}
-
 func (d *Driver) String() string {
+	{funcName := funcEnter();defer funcLeave(funcName)}
 	return "zfs"
 }
 
 func (d *Driver) Status() [][2]string {
+	{funcName := funcEnter();defer funcLeave(funcName)}
 	return [][2]string{
 		{"Root Dir", d.root},
 		{"Dataset", d.root_dataset_name},
@@ -108,6 +105,7 @@ func (d *Driver) Status() [][2]string {
  * filesystems of all the containers that it has in its registry.
  */
 func (d *Driver) Cleanup() error {
+	{funcName := funcEnter();defer funcLeave(funcName)}
 	return errors.New("zfs-Cleanup: not supported yet")
 }
 
@@ -116,14 +114,75 @@ func (d *Driver) Cleanup() error {
  * storage contents to populate the base image of this container.
  */
 func (d *Driver) Create(id string, parent string) error {
-	return errors.New("zfs-Create: not supported yet")
+	{funcName := funcEnter();defer funcLeave(funcName)}
+
+	/* TODO: What should we do if the container storage already exists? During
+	 * development, when image creation was interrupted midway, the ZFS dataset was
+	 * not cleaned up, and caused error in the next run, until dataset was manually
+	 * removed.
+	 */
+	if parent != "" {
+		snapshotName := "docker_" + fmt.Sprintf("%x", d.rand.Int31())
+		snapshotPath := path.Join(d.root_dataset_name, parent) + "@" + snapshotName
+
+		/* Create a snapshot of parent's storage */
+		_, _, err := execCmd("zfs", "snapshot", snapshotPath)
+		if err != nil {
+			return err // XXX We should cook a errors.New() with accurate message.
+		}
+
+		/* Clone the snapshot. This will create the filesystem in unmounted state. */
+		_, _, err = execCmd("zfs", "clone", snapshotPath, path.Join(d.root_dataset_name, id))
+		if err != nil {
+			return err // XXX We should cook a errors.New() with accurate message.
+		}
+
+		/* Unmount the filesystem; it'll be mounted by Get() API call, when needed. */
+		_, _, err = execCmd("zfs", "unmount", path.Join(d.root_dataset_name, id))
+		if err != nil {
+			return err // XXX We should cook a errors.New() with accurate message.
+		}
+
+		/* Mark the snapshot to be deleted, once it's not needed anymore */
+		_, _, err = execCmd("zfs", "destroy", "-d", snapshotPath)
+		if err != nil {
+			return err // XXX We should cook a errors.New() with accurate message.
+		}
+
+	} else {
+		_, _, err := execCmd("zfs", "create", path.Join(d.root_dataset_name, id))
+		if err != nil {
+			return err // XXX We should cook a errors.New() with accurate message.
+		}
+
+		/* Unmount the filesystem; it'll be mounted by Get() API call, when needed. */
+		_, _, err = execCmd("zfs", "unmount", path.Join(d.root_dataset_name, id))
+		if err != nil {
+			return err // XXX We should cook a errors.New() with accurate message.
+		}
+	}
+
+	return nil
 }
 
 /*
  * Remove the on-disk structures of the container's storage.
  */
 func (d *Driver) Remove(id string) error {
-	return errors.New("zfs-Remove: not supported yet")
+	{funcName := funcEnter();defer funcLeave(funcName)}
+
+	/*
+	 * TODO: I need -R option during development because the cron jobs create
+	 * snapshots of filesystems automatically, and we can't destroy a filesystem
+	 * until all dependent objects are destroyd. Alternatively, use -d option to
+	 * "defer" the filesystem destruction when it's dependent objects are destroyed.
+	 * The -d option seems to be a safer choice for eventual code to be submitted.
+	 */
+	_, _, err := execCmd("zfs", "destroy", "-R", path.Join(d.root_dataset_name, id))
+	if err != nil {
+		return err // XXX We should cook a errors.New() with accurate message.
+	}
+	return nil
 }
 
 /*
@@ -131,7 +190,23 @@ func (d *Driver) Remove(id string) error {
  * path to it.
  */
 func (d *Driver) Get(id string) (string, error) {
-	return "", errors.New("zfs-Get: not supported yet")
+	{funcName := funcEnter();defer funcLeave(funcName)}
+
+	outStream, _, err := execCmd("zfs", "list", "-H", "-o", "mounted", path.Join(d.root_dataset_name, id))
+	if err != nil {
+		return "", err // XXX We should cook a errors.New() with accurate message.
+	}
+
+	/* Return early if already mounted */
+	if outStream == "yes" {
+		return path.Join(d.root_mountpoint, id), nil
+	}
+
+	_, _, err = execCmd("zfs", "mount", path.Join(d.root_dataset_name, id))
+	if err != nil {
+		return "", err // XXX We should cook a errors.New() with accurate message.
+	}
+	return path.Join(d.root_mountpoint, id), nil
 }
 
 /*
@@ -139,6 +214,11 @@ func (d *Driver) Get(id string) (string, error) {
  */
 
 func (d *Driver) Exists(id string) bool {
-	return false
-}
+	{funcName := funcEnter();defer funcLeave(funcName)}
 
+	_, _, err := execCmd("zfs", "list", "-H", "-o", "mounted", path.Join(d.root_dataset_name, id))
+	if err != nil {
+		return false // XXX We should cook a errors.New() with accurate message.
+	}
+	return true
+}
