@@ -6,9 +6,15 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"github.com/dotcloud/docker/utils"
 )
+
+/*
+ * TODO: Add infrastructire to enable/disable debugging; inspired by
+ * http://play.golang.org/p/mOSbdHwSYR
+ */
 
 /*
  * Check if the slice contains a string
@@ -46,6 +52,10 @@ func dbg(format string, a ... interface{}) {
 	utils.Debugf("[zfs] " + format, a...)
 }
 
+/*
+ * TODO: Make calls of TrimSPace() optional, dependent on a parameter which is on
+ * by default.
+ */
 func execCmd(name string, args ... string) (string, string, error) {
 	cmd := exec.Command(name, args...)
 	dbg("Command: %v", cmd)
@@ -54,11 +64,29 @@ func execCmd(name string, args ... string) (string, string, error) {
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 	err := cmd.Run()
-	outString := outBuf.String()
-	errString := errBuf.String()
-	dbg("outStream: %s", outString)
-	dbg("errStream: %s", errString)
-	dbg("error: %v", err)
+	outString := strings.TrimSpace(outBuf.String())
+	errString := strings.TrimSpace(errBuf.String())
+	if outString != "" {
+		dbg("outStream: %s", outString)
+	}
+	if errString != "" {
+		dbg("errStream: %s", errString)
+	}
+	if err != nil {
+		dbg("error: %v", err)
+	}
 
 	return outString, errString, err
+}
+
+func funcEnter() string {
+
+	pc, _, _, _ := runtime.Caller(1)
+	funcName := runtime.FuncForPC(pc).Name()
+	dbg("Entering: %s", funcName)
+	return funcName
+}
+
+func funcLeave(funcName string) {
+	dbg("Leaving: %s", funcName)
 }
