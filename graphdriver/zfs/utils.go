@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"runtime"
 	"strings"
 	"github.com/dotcloud/docker/utils"
@@ -89,4 +90,12 @@ func funcEnter() string {
 
 func funcLeave(funcName string) {
 	dbg("Leaving: %s", funcName)
+}
+
+func (d *Driver) getDataset(id string) string {
+	return path.Join(d.root_dataset, id)
+}
+
+func (d *Driver) getPath(id string) string {
+	return path.Join(d.root_mountpoint, id)
 }
