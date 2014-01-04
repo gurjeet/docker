@@ -64,10 +64,10 @@ func Init(root string) (graphdriver.Driver, error) {
 									return r == '\t'
 								})
 
-	dataset_name := outSplice[0];
+	/* No need to trim the trailing newline; execCmd() already did that. */
+	dataset_name := outSplice[0]
 	mount_point := outSplice[1]
-	// Strip the trailing newline character
-	mount_point = strings.TrimSuffix(mount_point, "\n")
+
 	driver := Driver{root, dataset_name, mount_point, rand.New(rand.NewSource(time.Now().UnixNano()))}
 	dbg("New driver object: %v", driver.Status())
 

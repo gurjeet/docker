@@ -65,14 +65,22 @@ func execCmd(name string, args ... string) (string, string, error) {
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 	err := cmd.Run()
+
+	/*
+	 * Trim the output/error strings to remove any spurious space and trailing
+	 * new-lines.
+	 */
 	outString := strings.TrimSpace(outBuf.String())
 	errString := strings.TrimSpace(errBuf.String())
+
 	if outString != "" {
 		dbg("outStream: %s", outString)
 	}
+
 	if errString != "" {
 		dbg("errStream: %s", errString)
 	}
+
 	if err != nil {
 		dbg("error: %v", err)
 	}
