@@ -126,6 +126,17 @@ func (d *Driver) Create(id string, parent string) error {
 	 * not cleaned up, and caused error in the next run, until dataset was manually
 	 * removed.
 	 */
+
+	/*
+	 * We create the new filesystem with canmount=noauto property, so that the ZFS
+	 * filesystem does not try to mount these during FS creation here, and nor at
+	 * OS bootup time. Apart from the possible performance implications during
+	 * bootup, this is done primarily to avoid any error messages during OS bootup
+	 * which may be caused by either not-yet-attached devices, or dependency of ZFS
+	 * mount points on non-ZFS mount points.
+	 *
+	 * These filesystems are mounted, when necessary, by the Get() call.
+	 */
 	if parent != "" {
 		snapshotName := "docker_" + fmt.Sprintf("%x", d.rand.Int31())
 		snapshotPath := d.getDataset(parent) + "@" + snapshotName
@@ -137,13 +148,7 @@ func (d *Driver) Create(id string, parent string) error {
 		}
 
 		/* Clone the snapshot. */
-		_, _, err = execCmd("zfs", "clone", snapshotPath, dataset)
-		if err != nil {
-			return err // XXX We should cook a errors.New() with accurate message.
-		}
-
-		/* Unmount the filesystem; it'll be mounted by Get() API call, when needed. */
-		_, _, err = execCmd("zfs", "unmount", dataset)
+		_, _, err = execCmd("zfs", "clone", "-o", "canmount=noauto", snapshotPath, dataset)
 		if err != nil {
 			return err // XXX We should cook a errors.New() with accurate message.
 		}
@@ -155,13 +160,7 @@ func (d *Driver) Create(id string, parent string) error {
 		}
 
 	} else {
-		_, _, err := execCmd("zfs", "create", dataset)
-		if err != nil {
-			return err // XXX We should cook a errors.New() with accurate message.
-		}
-
-		/* Unmount the filesystem; it'll be mounted by Get() API call, when needed. */
-		_, _, err = execCmd("zfs", "unmount", dataset)
+		_, _, err := execCmd("zfs", "create", "-o", "canmount=noauto", dataset)
 		if err != nil {
 			return err // XXX We should cook a errors.New() with accurate message.
 		}
