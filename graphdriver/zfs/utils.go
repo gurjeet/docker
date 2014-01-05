@@ -56,6 +56,9 @@ func dbg(format string, a ... interface{}) {
 /*
  * TODO: Make calls of TrimSPace() optional, dependent on a parameter which is on
  * by default.
+ *
+ * TODO: Take an optional param with a default of true, to let the caller choose if
+ * they want to trim the stdout/stderr strings before being returned.
  */
 func execCmd(name string, args ... string) (string, string, error) {
 	cmd := exec.Command(name, args...)

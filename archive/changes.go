@@ -79,6 +79,7 @@ func Changes(layers []string, rw string) ([]Change, error) {
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
+				// TODO: The case (err != nil && os.IsNotExist(err)) is not being handled!
 				if err == nil {
 					// The file existed in the top layer, so that's a modification
 

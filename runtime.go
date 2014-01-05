@@ -690,7 +690,7 @@ func NewRuntimeFromDirectory(config *DaemonConfig) (*Runtime, error) {
 	 * code above.
 	 */
 	if _, ok := driver.(*zfs.Driver); ok {
-			utils.Debugf("[zfs] Loaded zfs storage driver")
+		utils.Debugf("[zfs] Loaded zfs storage driver")
 	}
 
 	if err := linkLxcStart(config.Root); err != nil {

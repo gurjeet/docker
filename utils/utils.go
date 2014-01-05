@@ -1117,3 +1117,13 @@ func CopyFile(src, dst string) (int64, error) {
 	defer df.Close()
 	return io.Copy(df, sf)
 }
+
+func printStack() {
+	pcs := make([]uintptr, 32)
+	runtime.Callers(1, pcs[:])
+
+	for _, pc := range pcs {
+		funcName := runtime.FuncForPC(pc).Name()
+		Debugf("Stack entry: %s", funcName)
+	}
+}
