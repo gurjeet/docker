@@ -59,6 +59,8 @@ func dbg(format string, a ... interface{}) {
  *
  * TODO: Take an optional param with a default of true, to let the caller choose if
  * they want to trim the stdout/stderr strings before being returned.
+ *
+ * TODO: Calculate and log how long each command execution takes.
  */
 func execCmd(name string, args ... string) (string, string, error) {
 	cmd := exec.Command(name, args...)
